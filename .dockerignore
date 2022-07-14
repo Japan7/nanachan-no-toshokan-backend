@@ -1,0 +1,9 @@
+__pycache__/
+/local_settings.py
+/local_settings_example.py
+/.venv/
+/.python-version
+/media
+/.git/
+/.gitignore
+/README.md
