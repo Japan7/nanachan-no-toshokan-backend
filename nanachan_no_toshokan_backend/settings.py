@@ -57,7 +57,7 @@ WSGI_APPLICATION = 'nanachan_no_toshokan_backend.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
     },
 }
 

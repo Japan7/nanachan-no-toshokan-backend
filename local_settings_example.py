@@ -10,7 +10,11 @@ ALLOWED_HOSTS = ['*']
 
 DATABASES_LOGIN = {
     'default': {
+        'USER': '',
+        'PASSWORD': '',
         'NAME': '',
+        'HOST': '',
+        'PORT': '',
     },
 }
 
