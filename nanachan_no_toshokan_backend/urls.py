@@ -12,7 +12,7 @@ router = routers.DefaultRouter()
 # router.extend(demo2_router)
 
 urlpatterns = [
-    path('api/', include(router.urls)),
+    path(f'{settings.API_ROOT}', include(router.urls)),
 ]
 
 if settings.DEBUG:
