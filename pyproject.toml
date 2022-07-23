@@ -3,6 +3,9 @@ name = "nanachan-no-toshokan"
 version = "0.1.0"
 description = ""
 authors = ["Your Name <you@example.com>"]
+packages = [
+    { include = "local_settings.py" },
+]
 
 [tool.poetry.dependencies]
 python = "^3.10"

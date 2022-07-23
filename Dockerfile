@@ -35,7 +35,7 @@ RUN pip install --no-cache-dir -r /requirements.txt && \
     apt-get autoremove -y build-essential && \
     apt-get clean
 
-COPY . /app
+COPY site /app
 
 COPY entrypoint.sh /entrypoint.sh
 ENTRYPOINT ["/entrypoint.sh"]

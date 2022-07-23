@@ -8,11 +8,11 @@ __pycache__/
 # Django
 /local_settings.py
 /local_settings_example.py
-/media/
+/site/media/
 
 # Misc
 /.git/
-.gitignore
+**/.gitignore
 README.md
 /.github/
 
