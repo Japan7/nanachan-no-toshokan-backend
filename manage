@@ -398,6 +398,7 @@ function setup() {
   check_install "poetry"
   check_install "docker"
   check_install "jq"
+  check_install "pyenv"
 
   # Initialize config file (or check for already initialized project)
   logc "Initializing project information data..."

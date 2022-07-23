@@ -50,6 +50,7 @@ requires the following GNU tools that you need to install first. Please refer to
 distribution to know how to install them.
 
 - `jq`, a command-line JSON processor,
+- `pyenv`, a simple Python version management tool,
 
 Once these programs are installed, you can simply run the following command:
 
