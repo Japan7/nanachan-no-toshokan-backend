@@ -1,10 +1,21 @@
+# Python
 __pycache__/
+
+# Poetry
+/.python-version
+/.venv/
+
+# Django
 /local_settings.py
 /local_settings_example.py
-/.venv/
-/.python-version
-/media
+/media/
+
+# Misc
 /.git/
-/.gitignore
-/README.md
+.gitignore
+README.md
 /.github/
+
+# Editors
+/.idea/
+**/*.swp
