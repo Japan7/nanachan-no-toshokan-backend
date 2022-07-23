@@ -1,16 +1,22 @@
-FROM python:3.10.5-slim AS build
+ARG PYTHON_VERSION=3.10.5
+ARG POETRY_VERSION=1.1.14
+
+
+
+FROM python:${PYTHON_VERSION}-slim AS build
 
 ENV PYTHONUNBUFFERED=1
 WORKDIR /app
 
-RUN pip install --no-cache-dir poetry
+ARG POETRY_VERSION
+RUN pip install --no-cache-dir poetry==${POETRY_VERSION}
 
 COPY pyproject.toml poetry.lock /app/
 RUN poetry export -o /requirements.txt
 
 
 
-FROM python:3.10.5-slim
+FROM python:${PYTHON_VERSION}-slim
 
 ENV PYTHONPATH="/app"
 ENV PYTHONUNBUFFERED=1
@@ -25,7 +31,7 @@ RUN apt-get update && \
 COPY --from=build /requirements.txt /requirements.txt
 RUN pip install --no-cache-dir -r /requirements.txt && \
     rm -f /requirements.txt && \
-    pip install --no-cache-dir gunicorn && \
+    pip install --no-cache-dir gunicorn==20.1.0 && \
     apt-get autoremove -y build-essential && \
     apt-get clean
 
