@@ -1,0 +1,621 @@
+#!/bin/bash -e
+
+# ########################################################################### #
+#                                General Setup                                #
+# ########################################################################### #
+
+# Script constants
+SCRIPT_NAME="manage"
+CONFIG_VERSION="1"
+PROJECT_NAME="Nanachan no Toshokan"
+
+APP_NAME="nnt-backend"
+APP_IMAGE="japan7/nanachan-no-toshokan-backend"
+APP_PORT="8000"
+
+DB_IMAGE="postgres:14-alpine"
+DB_PORT="5432"
+DB_USER_DEFAULT="nnt"
+DB_PASSWORD_DEFAULT="nnt"
+DB_DATABASE_DEFAULT="nnt"
+
+# Go to and save project root real absolute path
+cd -P -- "$(dirname -- "$(command -v -- "$0")")"
+__REAL_SCRIPT_DIR="$(pwd -P)"
+
+# Project info file
+LOCAL_DIR="${__REAL_SCRIPT_DIR}/.local"
+INFO_FILE="${LOCAL_DIR}/info.json"
+INFO_STRING=""
+
+# Django project folder
+DJANGO_DIR="${__REAL_SCRIPT_DIR}/site"
+
+# MODIFIERS
+FORCE=false
+
+# ########################################################################### #
+#                              Helpers Functions                              #
+# ########################################################################### #
+
+# Text style
+bold=$'\e[1m'
+unbold=$'\e[21;m' # due to a bug, ';' is mandatory
+red=$'\e[91m'
+green=$'\e[92m'
+yellow=$'\e[93m'
+blue=$'\e[94m'
+purple=$'\e[95m'
+cyan=$'\e[96m'
+uncolor=$'\e[39m'
+
+# Display 's' (or custom second param) if argument is greater than 1
+function plural() {
+  if [[ "$1" -gt 1 ]]; then
+    if [[ -z "$2" ]]; then
+      echo -n 's'
+    else
+      echo -n "$2"
+    fi
+  fi
+}
+
+# Log command in pacman style
+function logc() {
+  echo "$bold""$blue""::""$uncolor"" $1""$unbold"
+}
+
+# Display question in yay style
+function ask() {
+  echo -n "$bold""$green""==> $2:"$'\n'"==> ""$uncolor""$unbold"
+  local -n res="$1"
+  read -r res
+}
+
+# Display choice question in yay style
+function choose() {
+  local -n choices="$3"
+  local size="${#choices[@]}"
+
+  echo "$bold""$cyan""::""$uncolor"" $2""$unbold"
+
+  local i="$size"
+  for _ in "${choices[@]}"; do
+    echo "$purple""$i""$uncolor""  ${choices[$((i - 1))]}"
+    i="$((i - 1))"
+  done
+
+  local -n res="$1"
+  while true; do
+    echo -n "$bold""$green""==> $4: (eg: 1, 2, 3 or leave blank)"$'\n'"==> ""$uncolor""$unbold"
+    read -r res
+    case "$res" in
+    '') break ;;
+    *[!0-9]*) ;;
+    *) [[ "$res" -gt 0 ]] && [[ "$res" -le "$size" ]] && break ;;
+    esac
+  done
+
+  if [[ -n "$res" ]]; then
+    res="${choices[$((res - 1))]}"
+  fi
+}
+
+# Display error and exit
+function error() {
+  local IFS=$'\n'
+  local first=true
+  for line in $1; do
+    if $first; then
+      echo "$red""Error:""$uncolor"" $line" >&2
+      first=false
+    else
+      echo "       $line" >&2
+    fi
+  done
+}
+
+# Display warning
+function warning() {
+  local IFS=$'\n'
+  local first=true
+  for line in $1; do
+    if $first; then
+      echo "$red""Warning:""$uncolor"" $line" >&2
+      first=false
+    else
+      echo "         $line" >&2
+    fi
+  done
+}
+
+# Check if command exists
+function exists() (
+  command -v "$1" 1>/dev/null 2>&1
+)
+
+# Pretty test if command is installed
+function check_install() {
+  logc "Checking for ""$yellow""$1""$uncolor"" installation..."
+  exists "$1" || {
+    error "$yellow""$1""$uncolor"" does not seem to be installed."$'\n'"Please refer to the README."
+    exit 1
+  }
+}
+
+# Save (override) config file
+function save_config() {
+  echo "$INFO_STRING" | jq -S '.' >"$INFO_FILE"
+}
+
+# Load config from file and check it's integrity (is json valid, and has a "$SCRIPT_NAME" signature)
+function load_config() {
+  if [[ -f "$INFO_FILE" ]]; then
+    INFO_STRING="$(jq '.' "$INFO_FILE" 2>/dev/null)" || {
+      local code="$?"
+      error "Info file corrupted!"
+      exit "$code"
+    }
+  else
+    error "It seems that your project has not been initialized."$'\n'"You need to run the ""$yellow""setup""$uncolor"" command before using anything else."
+    exit 1
+  fi
+
+  local signature="$(echo "$INFO_STRING" | jq -r '.signature')"
+  if [[ "$signature" != "$SCRIPT_NAME" ]]; then
+    error "Info file corrupted!"
+    exit 1
+  fi
+}
+
+# Do some checks on config file & initialize config string
+function init_config() {
+  # Try to create LOCAL_DIR config folder
+  if [[ ! -d "$LOCAL_DIR" ]]; then
+    if [[ -e "$LOCAL_DIR" ]]; then
+      error "Unable to create ""$purple""$LOCAL_DIR""$uncolor"" directory."$'\n'"Please ensure that nothing already exists with that name."
+      exit 1
+    else
+      mkdir "$LOCAL_DIR"
+    fi
+  fi
+
+  if [[ -f "$INFO_FILE" ]]; then
+    # Test loading config to prevent erasing an important file
+    load_config
+
+    # Refuse to continue if a config file exists, and not in FORCE mode
+    if [[ "$FORCE" == false ]]; then
+      error "Oh my! Your project is already initialized!"$'\n'"Did you want to ""$yellow""update""$uncolor"" it? Or maybe ""$yellow""setup -f""$uncolor"" it?"
+      exit 1
+    fi
+  fi
+
+  INFO_STRING='{"signature": "'"$SCRIPT_NAME"'", "version": "'"$CONFIG_VERSION"'"}'
+}
+
+# Load and check config
+# Must be run before any command (except setup)
+function check_config() {
+  load_config
+
+  # Check config version number
+  local version="$(echo "$INFO_STRING" | jq -r '.version')"
+  if [[ "$version" < "$CONFIG_VERSION" ]]; then
+    error "It seems that your project is out of date."$'\n'"Please consider updating it with the ""$yellow""setup -f""$uncolor"" command before using anything else."
+    exit 1
+  elif [[ "$version" > "$CONFIG_VERSION" ]]; then
+    error "Holy cow! You come from future! That's amazing!... but not that convenient."$'\n'"You should try some ""$yellow""setup -f""$uncolor"" command to reset your project."
+    exit 1
+  fi
+}
+
+# Grab poetry.lock hash
+function get_poetry_hash() {
+  md5sum poetry.lock | cut -d \  -f 1
+}
+
+function run_django_manage() {
+  cd "$DJANGO_DIR"
+  poetry run ./manage.py "$@"
+  cd "$__REAL_SCRIPT_DIR"
+}
+
+# Stringify the first argument variable value if any, or set it to it's default value.
+# We need stringified values to respect JSON format.
+#
+# Example:
+#  - my_var="tut"
+#  - set_string_or_default my_var
+#  --> my_var == '"tut"'
+# Without value (requires a default value function)
+#  - my_var=""
+#  - function default_my_var() { echo "pouet" }
+#  - set_string_or_default my_var
+#  --> my_var == '"pouet"'
+function set_string_or_default() {
+  local -n arg="$1"
+  [[ -n "$arg" ]] && arg="\"${arg//\"/\\\"}\"" || arg="\"$(default_"$1")\""
+}
+
+# ########################################################################### #
+#                          Default values functions                           #
+# ########################################################################### #
+
+function default_db_container() {
+  local container="${APP_NAME}_db"
+  local i=2
+  while [[ -n "$(docker container ls --format '{{.Names}}' | awk '/^'"$container"'$/')" ]]; do
+    container="${container%_[0-9]*}_$i"
+    i="$((i + 1))"
+  done
+  echo "$container"
+}
+
+function default_db_volume() {
+  local volume="${APP_NAME}_db"
+  local i=2
+  while [[ -n "$(docker volume ls --format '{{.Name}}' | awk '/^'"$volume"'$/')" ]]; do
+    volume="${volume%_[0-9]*}_$i"
+    i="$((i + 1))"
+  done
+  echo "$volume"
+}
+
+function default_db_network() {
+  local network="${APP_NAME}"
+  local i=2
+  while [[ -n "$(docker network ls --format '{{.Name}}' | awk '/^'"$network"'$/')" ]]; do
+    network="${network%_[0-9]*}_$i"
+    i="$((i + 1))"
+  done
+  echo "$network"
+}
+
+function default_db_user() {
+  echo "$DB_USER_DEFAULT"
+}
+
+function default_db_password() {
+  echo "$DB_PASSWORD_DEFAULT"
+}
+
+function default_db_database() {
+  echo "$DB_DATABASE_DEFAULT"
+}
+
+function default_poetry_hash() {
+  get_poetry_hash
+}
+
+# ########################################################################### #
+#                              Action functions                               #
+# ########################################################################### #
+
+function update_python_venv() {
+  local poetry_hash="$(echo "$INFO_STRING" | jq -r '.poetry_hash')"
+  local wanted_poetry_hash="$(get_poetry_hash)"
+  if [[ "$poetry_hash" != "$wanted_poetry_hash" ]]; then
+    # Do the update
+    logc "Installing ""$yellow""Python""$uncolor"" virtual environment..."
+    poetry install --remove-untracked || {
+      local code="$?"
+      error "Error during installation (error code: $code)."
+      exit "$code"
+    }
+    poetry_hash="$wanted_poetry_hash"
+
+    # Save new hash
+    logc "Updating ""$purple""$INFO_FILE""$uncolor""..."
+    set_string_or_default poetry_hash
+    INFO_STRING="$(echo "$INFO_STRING" | jq '. * {"poetry_hash": '"$poetry_hash"'}')"
+    save_config
+  fi
+}
+
+function setup_database() {
+  local container="$(echo "$INFO_STRING" | jq -r '.database.container')"
+  local volume="$(echo "$INFO_STRING" | jq -r '.database.volume')"
+  local network="$(echo "$INFO_STRING" | jq -r '.database.network')"
+  local user="$(echo "$INFO_STRING" | jq -r '.database.user')"
+  local password="$(echo "$INFO_STRING" | jq -r '.database.password')"
+  local database="$(echo "$INFO_STRING" | jq -r '.database.database')"
+
+  logc "Setup ""$yellow""$PROJECT_NAME""$uncolor"" database..."
+
+  # Check if volume exists
+  if [[ -z "$(docker volume ls --format '{{.Name}}' | awk '/^'"$volume"'$/')" ]]; then
+    logc "Creating missing volume ""$yellow""$volume""$uncolor""..."
+    docker volume create "$volume"
+  fi
+
+  # Check if network exists
+  if [[ -z "$(docker network ls --format '{{.Name}}' | awk '/^'"$network"'$/')" ]]; then
+    logc "Creating missing network ""$yellow""$network""$uncolor""..."
+    docker network create "$network"
+  fi
+
+  # Check if container exists
+  if [[ -n "$(docker ps -a --format "{{.Names}}" | awk '/^'"$container"'$/')" ]]; then
+    # Check if container has volume
+    if [[ -z "$(docker inspect "$container" | jq -r '.[0].Mounts[].Name' | awk '/^'"$volume"'$/')" ]]; then
+      logc "Recreating database container..."
+      docker container stop "$container"
+      docker container rm "$container"
+      docker run -d --name "$container" --network "$network" -p "$DB_PORT:5432" --restart always -v "$volume":/var/lib/postgresql/data -e POSTGRES_HOST_AUTH_METHOD=trust "$DB_IMAGE"
+      sleep 2
+    else
+      # Check if container is running
+      local state="$(docker inspect "$container" | jq -r '.[0].State.Status')"
+      if [[ "$state" != "running" ]]; then
+        # Restart container
+        logc "Restarting database container..."
+        docker container restart "$container"
+      fi
+      # Check if container has network
+      if [[ -z "$(docker inspect "$container" | jq -r '.[0].NetworkSettings.Networks | to_entries | .[].key' | awk '/^'"$network"'$/')" ]]; then
+        logc "Attaching database container to network..."
+        docker network connect "$network" "$container"
+      fi
+    fi
+  else
+    # Create and run container
+    logc "Starting database container..."
+    docker run -d --name "$container" --network "$network" -p "$DB_PORT:5432" --restart always -v "$volume":/var/lib/postgresql/data -e POSTGRES_HOST_AUTH_METHOD=trust "$DB_IMAGE"
+    sleep 2
+  fi
+
+  # Check if user exists
+  if [[ -z "$(docker exec "$container" /usr/local/bin/psql -U postgres -tAF\| -c "SELECT * FROM pg_user WHERE usename = '$user'")" ]]; then
+    docker exec "$container" /usr/local/bin/psql -U postgres -tAF\| -c "CREATE ROLE $user WITH LOGIN CREATEDB PASSWORD '$password'"
+  elif [[ -z "$(docker exec "$container" /usr/local/bin/psql -U postgres -tAF\| -c "SELECT * FROM pg_user WHERE usename = '$user' AND usecreatedb = true")" ]]; then
+    docker exec "$container" /usr/local/bin/psql -U postgres -tAF\| -c "ALTER ROLE $user WITH CREATEDB"
+  fi
+
+  # Check if database exists
+  if [[ -z "$(docker exec "$container" /usr/local/bin/psql -U postgres -tAF\| -c "SELECT * FROM pg_database WHERE datname = '$database'")" ]]; then
+    docker exec "$container" /usr/local/bin/psql -U postgres -tAF\| -c "CREATE DATABASE $database WITH OWNER $user"
+  fi
+}
+
+# ########################################################################### #
+#                            Management Functions                             #
+# ########################################################################### #
+
+function _do_project_maintenance() {
+  if [[ "$*" != *"skip_config"* ]]; then
+    check_config
+  fi
+
+  if [[ "$*" != *"skip_docker"* ]]; then
+    setup_database
+  fi
+
+  if [[ "$*" != *"skip_venv"* ]]; then
+    update_python_venv
+  fi
+
+  if [[ "$*" != *"skip_db"* ]]; then
+    run_django_manage migrate
+  fi
+}
+
+function setup() {
+  # Check requirements installation
+  check_install "poetry"
+  check_install "docker"
+  check_install "jq"
+
+  # Initialize config file (or check for already initialized project)
+  logc "Initializing project information data..."
+  init_config
+
+  # ########################### #
+  # Search database information #
+  # ########################### #
+  logc "Setting up ${PROJECT_NAME} database..."
+  # Search database container
+  local containers
+  mapfile -t containers < <(docker ps -a --format "{{.Names}}|{{.Image}}" | awk -F '|' '/'"$DB_IMAGE"'/ {print $1}')
+  local n_containers="${#containers[@]}"
+  local db_container
+  if [[ "$n_containers" -ge 1 ]]; then
+    choose db_container "$n_containers compatible container$(plural "$n_containers") found." containers "Container to use as ${PROJECT_NAME} database"
+  fi
+  # Search database volume
+  local volumes
+  local db_volume
+  if [[ -n "$db_container" ]]; then
+    mapfile -t volumes < <(docker inspect "$db_container" | jq -r '.[0].Mounts[].Name')
+    local n_volumes="${#volumes[@]}"
+    if [[ "$n_volumes" -ge 1 ]]; then
+      choose db_volume "$n_volumes mounted volume$(plural "$n_volumes") found." volumes "Volume to use for ${PROJECT_NAME} database"
+    fi
+  fi
+  if [[ -z "$db_volume" ]]; then
+    mapfile -t volumes < <(docker volume ls --format "{{.Name}}")
+    local n_volumes="${#volumes[@]}"
+    if [[ "$n_volumes" -ge 1 ]]; then
+      choose db_volume "$n_volumes available volume$(plural "$n_volumes") found." volumes "Volume to use for ${PROJECT_NAME} database"
+    fi
+  fi
+  # Search for database network
+  local networks
+  local db_network
+  if [[ -n "$db_container" ]]; then
+    mapfile -t networks < <(docker inspect "$db_container" | jq -r '.[0].NetworkSettings.Networks | to_entries | .[].key')
+    local n_networks="${#networks[@]}"
+    if [[ "$n_networks" -ge 1 ]]; then
+      choose db_network "$n_networks attached network$(plural "$n_networks") found." networks "Network to use for ${PROJECT_NAME} database"
+    fi
+  fi
+  if [[ -z "$db_network" ]]; then
+    mapfile -t networks < <(docker network ls --format "{{.Name}}")
+    local n_networks="${#networks[@]}"
+    if [[ "$n_networks" -ge 1 ]]; then
+      choose db_network "$n_networks available network$(plural "$n_networks") found." networks "Network to use for ${PROJECT_NAME} database"
+    fi
+  fi
+
+  # Search postgres user and database
+  if [[ -n "$db_volume" ]] && [[ -n "$db_container" ]]; then
+    local temp_id="$(docker run -d -v "$db_volume":/var/lib/postgresql/data "$DB_IMAGE")"
+
+    local users
+    mapfile -t users < <(docker exec "$db_container" /usr/local/bin/psql -U postgres -tAF\| -c "SELECT usename FROM pg_user")
+    local n_users="${#users[@]}"
+    local db_user
+    if [[ "$n_users" -ge 1 ]]; then
+      choose db_user "$n_users available user$(plural "$n_users") found." users "User to use for ${PROJECT_NAME} database"
+    fi
+
+    local databases
+    mapfile -t databases < <(docker exec "$db_container" /usr/local/bin/psql -U postgres -tAF\| -c "SELECT datname FROM pg_database WHERE datistemplate = false")
+    local n_databases="${#databases[@]}"
+    local db_database
+    if [[ "$n_databases" -ge 1 ]]; then
+      choose db_database "$n_databases available database$(plural "$n_databases") found." databases "Database to use for ${PROJECT_NAME} database"
+    fi
+
+    docker rm -f "$temp_id" 1>/dev/null
+  fi
+
+  # Ask for postgres password
+  local db_password
+  ask db_password "Enter database password"
+
+  set_string_or_default db_container
+  INFO_STRING="$(echo "$INFO_STRING" | jq '. * {"database": {"container": '"$db_container"'}}')"
+  set_string_or_default db_volume
+  INFO_STRING="$(echo "$INFO_STRING" | jq '. * {"database": {"volume": '"$db_volume"'}}')"
+  set_string_or_default db_network
+  INFO_STRING="$(echo "$INFO_STRING" | jq '. * {"database": {"network": '"$db_network"'}}')"
+  set_string_or_default db_user
+  INFO_STRING="$(echo "$INFO_STRING" | jq '. * {"database": {"user": '"$db_user"'}}')"
+  set_string_or_default db_password
+  INFO_STRING="$(echo "$INFO_STRING" | jq '. * {"database": {"password": '"$db_password"'}}')"
+  set_string_or_default db_database
+  INFO_STRING="$(echo "$INFO_STRING" | jq '. * {"database": {"database": '"$db_database"'}}')"
+
+  # Ask for configuration validation
+  logc "About to write to ""$purple""$INFO_FILE""$uncolor"":"
+  echo "$INFO_STRING" | jq -S '.'
+  local res
+  echo -n "$bold""$green""==> Is it ok? (yes)"$'\n'"==> ""$uncolor""$unbold"
+  read -r res
+  case "$res" in
+  'n'* | 'N'*)
+    logc "Aborting"
+    exit 0
+    ;;
+  *) ;;
+  esac
+
+  # Saving configuration
+  logc "Generating project information file..."
+  save_config
+
+  # Do some post-setup tasks
+  _do_project_maintenance skip_config
+}
+
+function update() {
+  _do_project_maintenance
+}
+
+function test_in_docker() {
+  _do_project_maintenance skip_venv skip_db
+
+  local network="$(echo "$INFO_STRING" | jq -r '.database.network')"
+  logc "Building ""$yellow""$PROJECT_NAME""$uncolor"" image..."
+  docker build --pull -t "$APP_IMAGE" --build-arg NPM_COMMAND=dev-docker .
+  logc "Starting container..."
+  local arg="${1:-debug}"
+  if [[ "$arg" == "debug" ]]; then
+    docker run --rm -it \
+      --network "$network" \
+      -p "$APP_PORT:$APP_PORT" \
+      -v "$(pwd)"/local_settings.py:/app/local_settings.py \
+      --name "${APP_NAME}" \
+      "$APP_IMAGE" \
+      debug
+  else
+    error "Invalid argument $arg"
+  fi
+}
+
+# ########################################################################### #
+#                                    Main                                     #
+# ########################################################################### #
+
+# Help function
+function show_help() {
+  cat <<EOF
+Usage: ${SCRIPT_NAME} [-h] <COMMAND> [-f]
+Remember the project's management commands for you.
+
+  -h, --help               display this help and exit
+  -f, --force              when used with setup, do not check for already initialized project
+
+  setup                    set your development environment up
+  update                   update your development environment and project to current version
+  docker [<mode>]          build project image and run it in <mode> mode ("debug" by default)
+EOF
+}
+
+# Read the script options
+TEMP=$(getopt -o "h,f" --long "help,force" -n "${red}Error${uncolor}" -- "$@") || {
+  echo # New line
+  show_help
+  exit 1
+}
+eval set -- "${TEMP}"
+unset TEMP
+
+# Extract options and their arguments into variables
+while true; do
+  case "$1" in
+  '-h' | '--help')
+    show_help
+    exit 0
+    ;;
+  '-f' | '--force')
+    FORCE=true
+    shift
+    ;;
+  '--')
+    shift
+    break
+    ;;
+  *)
+    error "Internal error!"
+    exit 1
+    ;;
+  esac
+done
+
+# In case no command passed, show help without error
+if [[ $# -eq 0 ]]; then
+  show_help
+  exit 0
+fi
+
+# Parse command
+case "$1" in
+'setup')
+  setup
+  ;;
+'update')
+  update
+  ;;
+'docker')
+  shift
+  test_in_docker "$@"
+  ;;
+'help')
+  show_help
+  ;;
+*)
+  run_django_manage "$@"
+  ;;
+esac
