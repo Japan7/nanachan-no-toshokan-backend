@@ -1,6 +1,11 @@
 Nanachan no Toshokan (backend)
 ==============================
 
+[![License](https://img.shields.io/badge/license-MIT-green)](https://github.com/Japan7/nanachan-no-toshokan-backend/blob/main/LICENSE)
+[![Tests status](https://github.com/Japan7/nanachan-no-toshokan-backend/actions/workflows/build.yml/badge.svg?branch=main&event=push)](https://github.com/Japan7/nanachan-no-toshokan-backend/actions?query=workflow%3ABuild+branch%3Amain+event%3Apush)
+[![Code version](https://img.shields.io/github/v/tag/Japan7/nanachan-no-toshokan-backend?color=blue&label=version&sort=semver)](https://github.com/Japan7/nanachan-no-toshokan-backend/actions?query=workflow%3ARelease)
+[![Python version](https://img.shields.io/badge/python-3.10-orange)](https://docs.python.org/3.10/)
+
 Installation
 ------------
 
