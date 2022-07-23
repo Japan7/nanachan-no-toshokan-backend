@@ -315,7 +315,7 @@ function setup_database() {
   local password="$(echo "$INFO_STRING" | jq -r '.database.password')"
   local database="$(echo "$INFO_STRING" | jq -r '.database.database')"
 
-  logc "Setup ""$yellow""$PROJECT_NAME""$uncolor"" database..."
+  logc "Checking ""$yellow""$PROJECT_NAME""$uncolor"" database..."
 
   # Check if volume exists
   if [[ -z "$(docker volume ls --format '{{.Name}}' | awk '/^'"$volume"'$/')" ]]; then
