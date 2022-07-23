@@ -279,6 +279,13 @@ function default_poetry_hash() {
 #                              Action functions                               #
 # ########################################################################### #
 
+function check_dependencies() {
+  check_install "poetry"
+  check_install "docker"
+  check_install "jq"
+  check_install "pyenv"
+}
+
 function update_python_venv() {
   local poetry_hash="$(echo "$INFO_STRING" | jq -r '.poetry_hash')"
   local wanted_poetry_hash="$(get_poetry_hash)"
@@ -376,6 +383,10 @@ function run_django_manage() {
 # ########################################################################### #
 
 function _do_project_maintenance() {
+  if [[ "$*" != *"skip_deps"* ]]; then
+    check_dependencies
+  fi
+
   if [[ "$*" != *"skip_config"* ]]; then
     check_config
   fi
@@ -389,16 +400,14 @@ function _do_project_maintenance() {
   fi
 
   if [[ "$*" != *"skip_db"* ]]; then
+    logc "Applying ""$yellow""Django""$uncolor"" migrations..."
     run_django_manage migrate
   fi
 }
 
 function setup() {
   # Check requirements installation
-  check_install "poetry"
-  check_install "docker"
-  check_install "jq"
-  check_install "pyenv"
+  check_dependencies
 
   # Initialize config file (or check for already initialized project)
   logc "Initializing project information data..."
@@ -510,7 +519,7 @@ function setup() {
   save_config
 
   # Do some post-setup tasks
-  _do_project_maintenance skip_config
+  _do_project_maintenance skip_deps skip_config
 }
 
 function update() {
