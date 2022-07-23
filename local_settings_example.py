@@ -19,6 +19,7 @@ DATABASES_LOGIN = {
 
 # Static files
 
+STATIC_ROOT = 'static/'
 MEDIA_ROOT = 'media/'
 
 # Security

@@ -17,7 +17,7 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     # 'django.contrib.sessions',
     # 'django.contrib.messages',
-    # 'django.contrib.staticfiles',
+    'django.contrib.staticfiles',
 
     'rest_framework',
 
@@ -101,6 +101,9 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/4.0/howto/static-files/
 
 STATIC_URL = 'static/'
+
+if not DEBUG:
+    STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
 
 MEDIA_URL = 'media/'
 

@@ -9,6 +9,7 @@ __pycache__/
 /local_settings.py
 /local_settings_example.py
 /site/media/
+/site/static/
 
 # Misc
 /.git/

@@ -2,6 +2,8 @@
 
 set -e
 
+./manage.py collectstatic -c --no-input
+
 if [ $# -ge 1 ] && [ "$1" = "test" ]; then
     ./manage.py makemigrations --check --dry-run
     ./manage.py check

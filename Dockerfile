@@ -21,7 +21,8 @@ FROM python:${PYTHON_VERSION}-slim
 ENV PYTHONPATH="/app"
 ENV PYTHONUNBUFFERED=1
 EXPOSE 8000
-VOLUME /www
+VOLUME /www/media
+VOLUME /www/static
 WORKDIR /app
 
 RUN apt-get update && \
