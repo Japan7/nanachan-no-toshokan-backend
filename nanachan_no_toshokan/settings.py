@@ -34,7 +34,7 @@ MIDDLEWARE = [
     # 'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'nanachan_no_toshokan_backend.urls'
+ROOT_URLCONF = 'nanachan_no_toshokan.urls'
 
 TEMPLATES = [
     {
@@ -52,7 +52,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'nanachan_no_toshokan_backend.wsgi.application'
+WSGI_APPLICATION = 'nanachan_no_toshokan.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/4.0/ref/settings/#databases

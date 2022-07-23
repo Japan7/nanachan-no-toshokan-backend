@@ -1,5 +1,5 @@
 """
-WSGI config for nanachan_no_toshokan_backend project.
+WSGI config for nanachan_no_toshokan project.
 
 It exposes the WSGI callable as a module-level variable named ``application``.
 
@@ -11,6 +11,6 @@ import os
 
 from django.core.wsgi import get_wsgi_application
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'nanachan_no_toshokan_backend.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'nanachan_no_toshokan.settings')
 
 application = get_wsgi_application()
