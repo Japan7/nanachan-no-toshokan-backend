@@ -516,25 +516,33 @@ function update() {
   _do_project_maintenance
 }
 
-function test_in_docker() {
+function run_in_docker() {
   _do_project_maintenance skip_venv skip_db
 
-  local network="$(echo "$INFO_STRING" | jq -r '.database.network')"
+  # Build docker image
   logc "Building ""$yellow""$PROJECT_NAME""$uncolor"" image..."
-  docker build --pull -t "$APP_IMAGE" --build-arg NPM_COMMAND=dev-docker .
+  docker build --pull -t "$APP_IMAGE" .
+
+  # Setup run command options
+  local cmd="${1:-debug}"
+  local additionnal_options=""
+  case "$cmd" in
+  "debug") additionnal_options="-p $APP_PORT:$APP_PORT" ;;
+  "test") ;;
+  *) error "Invalid argument $cmd" 1 ;;
+  esac
+
+  # Run container
+  local network="$(echo "$INFO_STRING" | jq -r '.database.network')"
   logc "Starting container..."
-  local arg="${1:-debug}"
-  if [[ "$arg" == "debug" ]]; then
-    docker run --rm -it \
-      --network "$network" \
-      -p "$APP_PORT:$APP_PORT" \
-      -v "$(pwd)"/local_settings.py:/app/local_settings.py \
-      --name "${APP_NAME}" \
-      "$APP_IMAGE" \
-      debug
-  else
-    error "Invalid argument $arg" 1
-  fi
+  # shellcheck disable=SC2086
+  docker run --rm -it \
+    --network "$network" \
+    -v "$(pwd)"/local_settings.py:/app/local_settings.py \
+    --name "${APP_NAME}" \
+    $additionnal_options \
+    "$APP_IMAGE" \
+    "$cmd"
 }
 
 # ########################################################################### #
@@ -552,7 +560,7 @@ Remember the project's management commands for you.
 
   setup                    set your development environment up
   update                   update your development environment and project to current version
-  docker [<mode>]          build project image and run it in <mode> mode ("debug" by default)
+  docker [<cmd>]           build project image and run it with command <cmd> ("debug" by default)
 EOF
 }
 
@@ -602,7 +610,7 @@ case "$1" in
   ;;
 'docker')
   shift
-  test_in_docker "$@"
+  run_in_docker "$@"
   ;;
 'help')
   show_help
