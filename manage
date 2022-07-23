@@ -6,7 +6,7 @@
 
 # Script constants
 SCRIPT_NAME="manage"
-CONFIG_VERSION="1"
+CONFIG_VERSION="2"
 PROJECT_NAME="Nanachan no Toshokan"
 
 APP_NAME="nnt-backend"
@@ -203,11 +203,6 @@ function check_config() {
   fi
 }
 
-# Grab poetry.lock hash
-function get_poetry_hash() {
-  md5sum poetry.lock | cut -d \  -f 1
-}
-
 # Stringify the first argument variable value if any, or set it to it's default value.
 # We need stringified values to respect JSON format.
 #
@@ -271,10 +266,6 @@ function default_db_database() {
   echo "$DB_DATABASE_DEFAULT"
 }
 
-function default_poetry_hash() {
-  get_poetry_hash
-}
-
 # ########################################################################### #
 #                              Action functions                               #
 # ########################################################################### #
@@ -287,24 +278,24 @@ function check_dependencies() {
 }
 
 function update_python_venv() {
-  local poetry_hash="$(echo "$INFO_STRING" | jq -r '.poetry_hash')"
-  local wanted_poetry_hash="$(get_poetry_hash)"
-  if [[ "$poetry_hash" != "$wanted_poetry_hash" ]]; then
-    # Do the update
+  # Check if required python version is installed through pyenv
+  pyenv version >/dev/null 2>&1 || {
+    logc "Installing required version of ""$yellow""Python""$uncolor""..."
+    pyenv install
+  }
+
+  # Check if venv is actually installed
+  poetry env info -q -p || {
     logc "Installing ""$yellow""Python""$uncolor"" virtual environment..."
     poetry env use "$(which python)"
-    poetry install --remove-untracked || {
-      local code="$?"
-      error "Error during installation (error code: $code)." "$code"
-    }
-    poetry_hash="$wanted_poetry_hash"
+  }
 
-    # Save new hash
-    logc "Updating ""$purple""$INFO_FILE""$uncolor""..."
-    set_string_or_default poetry_hash
-    INFO_STRING="$(echo "$INFO_STRING" | jq '. * {"poetry_hash": '"$poetry_hash"'}')"
-    save_config
-  fi
+  # Do the update
+  logc "Installing ""$yellow""Python""$uncolor"" dependencies..."
+  poetry install --remove-untracked || {
+    local code="$?"
+    error "Error during installation (error code: $code)." "$code"
+  }
 }
 
 function setup_database() {
