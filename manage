@@ -208,12 +208,6 @@ function get_poetry_hash() {
   md5sum poetry.lock | cut -d \  -f 1
 }
 
-function run_django_manage() {
-  cd "$DJANGO_DIR"
-  poetry run ./manage.py "$@"
-  cd "$__REAL_SCRIPT_DIR"
-}
-
 # Stringify the first argument variable value if any, or set it to it's default value.
 # We need stringified values to respect JSON format.
 #
@@ -369,6 +363,12 @@ function setup_database() {
   if [[ -z "$(docker exec "$container" /usr/local/bin/psql -U postgres -tAF\| -c "SELECT * FROM pg_database WHERE datname = '$database'")" ]]; then
     docker exec "$container" /usr/local/bin/psql -U postgres -tAF\| -c "CREATE DATABASE $database WITH OWNER $user"
   fi
+}
+
+function run_django_manage() {
+  cd "$DJANGO_DIR"
+  poetry run ./manage.py "$@"
+  cd "$__REAL_SCRIPT_DIR"
 }
 
 # ########################################################################### #
