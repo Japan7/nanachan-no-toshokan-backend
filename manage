@@ -113,6 +113,7 @@ function error() {
       echo "       $line" >&2
     fi
   done
+  exit "$2"
 }
 
 # Display warning
@@ -138,8 +139,7 @@ function exists() (
 function check_install() {
   logc "Checking for ""$yellow""$1""$uncolor"" installation..."
   exists "$1" || {
-    error "$yellow""$1""$uncolor"" does not seem to be installed."$'\n'"Please refer to the README."
-    exit 1
+    error "$yellow""$1""$uncolor"" does not seem to be installed."$'\n'"Please refer to the README." 1
   }
 }
 
@@ -153,18 +153,15 @@ function load_config() {
   if [[ -f "$INFO_FILE" ]]; then
     INFO_STRING="$(jq '.' "$INFO_FILE" 2>/dev/null)" || {
       local code="$?"
-      error "Info file corrupted!"
-      exit "$code"
+      error "Info file corrupted!" "$code"
     }
   else
-    error "It seems that your project has not been initialized."$'\n'"You need to run the ""$yellow""setup""$uncolor"" command before using anything else."
-    exit 1
+    error "It seems that your project has not been initialized."$'\n'"You need to run the ""$yellow""setup""$uncolor"" command before using anything else." 1
   fi
 
   local signature="$(echo "$INFO_STRING" | jq -r '.signature')"
   if [[ "$signature" != "$SCRIPT_NAME" ]]; then
-    error "Info file corrupted!"
-    exit 1
+    error "Info file corrupted!" 1
   fi
 }
 
@@ -173,8 +170,7 @@ function init_config() {
   # Try to create LOCAL_DIR config folder
   if [[ ! -d "$LOCAL_DIR" ]]; then
     if [[ -e "$LOCAL_DIR" ]]; then
-      error "Unable to create ""$purple""$LOCAL_DIR""$uncolor"" directory."$'\n'"Please ensure that nothing already exists with that name."
-      exit 1
+      error "Unable to create ""$purple""$LOCAL_DIR""$uncolor"" directory."$'\n'"Please ensure that nothing already exists with that name." 1
     else
       mkdir "$LOCAL_DIR"
     fi
@@ -186,8 +182,7 @@ function init_config() {
 
     # Refuse to continue if a config file exists, and not in FORCE mode
     if [[ "$FORCE" == false ]]; then
-      error "Oh my! Your project is already initialized!"$'\n'"Did you want to ""$yellow""update""$uncolor"" it? Or maybe ""$yellow""setup -f""$uncolor"" it?"
-      exit 1
+      error "Oh my! Your project is already initialized!"$'\n'"Did you want to ""$yellow""update""$uncolor"" it? Or maybe ""$yellow""setup -f""$uncolor"" it?" 1
     fi
   fi
 
@@ -202,11 +197,9 @@ function check_config() {
   # Check config version number
   local version="$(echo "$INFO_STRING" | jq -r '.version')"
   if [[ "$version" < "$CONFIG_VERSION" ]]; then
-    error "It seems that your project is out of date."$'\n'"Please consider updating it with the ""$yellow""setup -f""$uncolor"" command before using anything else."
-    exit 1
+    error "It seems that your project is out of date."$'\n'"Please consider updating it with the ""$yellow""setup -f""$uncolor"" command before using anything else." 1
   elif [[ "$version" > "$CONFIG_VERSION" ]]; then
-    error "Holy cow! You come from future! That's amazing!... but not that convenient."$'\n'"You should try some ""$yellow""setup -f""$uncolor"" command to reset your project."
-    exit 1
+    error "Holy cow! You come from future! That's amazing!... but not that convenient."$'\n'"You should try some ""$yellow""setup -f""$uncolor"" command to reset your project." 1
   fi
 }
 
@@ -301,8 +294,7 @@ function update_python_venv() {
     poetry env use "$(which python)"
     poetry install --remove-untracked || {
       local code="$?"
-      error "Error during installation (error code: $code)."
-      exit "$code"
+      error "Error during installation (error code: $code)." "$code"
     }
     poetry_hash="$wanted_poetry_hash"
 
@@ -541,7 +533,7 @@ function test_in_docker() {
       "$APP_IMAGE" \
       debug
   else
-    error "Invalid argument $arg"
+    error "Invalid argument $arg" 1
   fi
 }
 
@@ -589,8 +581,7 @@ while true; do
     break
     ;;
   *)
-    error "Internal error!"
-    exit 1
+    error "Internal error!" 1
     ;;
   esac
 done
