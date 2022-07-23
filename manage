@@ -298,6 +298,7 @@ function update_python_venv() {
   if [[ "$poetry_hash" != "$wanted_poetry_hash" ]]; then
     # Do the update
     logc "Installing ""$yellow""Python""$uncolor"" virtual environment..."
+    poetry env use "$(which python)"
     poetry install --remove-untracked || {
       local code="$?"
       error "Error during installation (error code: $code)."
