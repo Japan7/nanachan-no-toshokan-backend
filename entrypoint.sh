@@ -14,5 +14,6 @@ fi
 if [ $# -ge 1 ] && [ "$1" = "debug" ]; then
     exec python -Wa manage.py runserver 0.0.0.0:8000
 else
+    ./manage.py check --deploy --fail-level=WARNING
     exec gunicorn
 fi
