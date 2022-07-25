@@ -31,6 +31,8 @@ RUN apt-get update && \
     rm -rf /var/lib/{apt,dpkg,cache,log}/
 
 COPY --from=build /requirements.txt /requirements.txt
+
+ARG GUNICORN_VERSION
 RUN pip install --no-cache-dir -r /requirements.txt && \
     rm -f /requirements.txt && \
     pip install --no-cache-dir gunicorn==${GUNICORN_VERSION} && \
