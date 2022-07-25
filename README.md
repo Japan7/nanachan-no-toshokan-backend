@@ -43,21 +43,6 @@ script uses it.
 All you need is to install it. The installation way may depend on your distribution if you are
 on Linux. You will find more information [here](https://docs.docker.com/install/).
 
-### Development environment
-
-If you use Linux, then everything is already done for you in the `manage` script. But it
-requires the following GNU tools that you need to install first. Please refer to your
-distribution to know how to install them.
-
-- `jq`, a command-line JSON processor,
-- `pyenv`, a simple Python version management tool,
-
-Once these programs are installed, you can simply run the following command:
-
-```bash
-./manage setup
-```
-
 ### Setup `local_settings.py`
 
 Copy `local_settings_example.py` to `local_settings.py`, and complete it:
@@ -78,4 +63,19 @@ rules:
 
 ```
 127.0.0.1   nnt_db
+```
+
+### Development environment
+
+If you use Linux, then everything is already done for you in the `manage` script. But it
+requires the following GNU tools that you need to install first. Please refer to your
+distribution to know how to install them.
+
+- `jq`, a command-line JSON processor,
+- `pyenv`, a simple Python version management tool,
+
+Once these programs are installed, you can simply run the following command:
+
+```bash
+./manage setup
 ```
