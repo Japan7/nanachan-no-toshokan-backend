@@ -1,5 +1,6 @@
 ARG PYTHON_VERSION=3.10.5
 ARG POETRY_VERSION=1.1.14
+ARG GUNICORN_VERSION=20.1.0
 
 
 
@@ -32,7 +33,7 @@ RUN apt-get update && \
 COPY --from=build /requirements.txt /requirements.txt
 RUN pip install --no-cache-dir -r /requirements.txt && \
     rm -f /requirements.txt && \
-    pip install --no-cache-dir gunicorn==20.1.0 && \
+    pip install --no-cache-dir gunicorn==${GUNICORN_VERSION} && \
     apt-get autoremove -y build-essential && \
     apt-get clean
 
