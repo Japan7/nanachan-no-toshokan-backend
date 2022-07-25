@@ -101,7 +101,7 @@ function choose() {
   fi
 }
 
-# Display error and exit
+# Display error and exit (return code 1 by default)
 function error() {
   local IFS=$'\n'
   local first=true
@@ -113,7 +113,7 @@ function error() {
       echo "       $line" >&2
     fi
   done
-  exit "$2"
+  exit "${2:-1}"
 }
 
 # Display warning
@@ -139,7 +139,7 @@ function exists() (
 function check_install() {
   logc "Checking for ""$yellow""$1""$uncolor"" installation..."
   exists "$1" || {
-    error "$yellow""$1""$uncolor"" does not seem to be installed."$'\n'"Please refer to the README." 1
+    error "$yellow""$1""$uncolor"" does not seem to be installed."$'\n'"Please refer to the README."
   }
 }
 
@@ -156,12 +156,12 @@ function load_config() {
       error "Info file corrupted!" "$code"
     }
   else
-    error "It seems that your project has not been initialized."$'\n'"You need to run the ""$yellow""setup""$uncolor"" command before using anything else." 1
+    error "It seems that your project has not been initialized."$'\n'"You need to run the ""$yellow""setup""$uncolor"" command before using anything else."
   fi
 
   local signature="$(echo "$INFO_STRING" | jq -r '.signature')"
   if [[ "$signature" != "$SCRIPT_NAME" ]]; then
-    error "Info file corrupted!" 1
+    error "Info file corrupted!"
   fi
 }
 
@@ -170,7 +170,7 @@ function init_config() {
   # Try to create LOCAL_DIR config folder
   if [[ ! -d "$LOCAL_DIR" ]]; then
     if [[ -e "$LOCAL_DIR" ]]; then
-      error "Unable to create ""$purple""$LOCAL_DIR""$uncolor"" directory."$'\n'"Please ensure that nothing already exists with that name." 1
+      error "Unable to create ""$purple""$LOCAL_DIR""$uncolor"" directory."$'\n'"Please ensure that nothing already exists with that name."
     else
       mkdir "$LOCAL_DIR"
     fi
@@ -182,7 +182,7 @@ function init_config() {
 
     # Refuse to continue if a config file exists, and not in FORCE mode
     if [[ "$FORCE" == false ]]; then
-      error "Oh my! Your project is already initialized!"$'\n'"Did you want to ""$yellow""update""$uncolor"" it? Or maybe ""$yellow""setup -f""$uncolor"" it?" 1
+      error "Oh my! Your project is already initialized!"$'\n'"Did you want to ""$yellow""update""$uncolor"" it? Or maybe ""$yellow""setup -f""$uncolor"" it?"
     fi
   fi
 
@@ -197,9 +197,9 @@ function check_config() {
   # Check config version number
   local version="$(echo "$INFO_STRING" | jq -r '.version')"
   if [[ "$version" < "$CONFIG_VERSION" ]]; then
-    error "It seems that your project is out of date."$'\n'"Please consider updating it with the ""$yellow""setup -f""$uncolor"" command before using anything else." 1
+    error "It seems that your project is out of date."$'\n'"Please consider updating it with the ""$yellow""setup -f""$uncolor"" command before using anything else."
   elif [[ "$version" > "$CONFIG_VERSION" ]]; then
-    error "Holy cow! You come from future! That's amazing!... but not that convenient."$'\n'"You should try some ""$yellow""setup -f""$uncolor"" command to reset your project." 1
+    error "Holy cow! You come from the future! That's amazing!... but not that convenient."$'\n'"You should try some ""$yellow""setup -f""$uncolor"" command to reset your project."
   fi
 }
 
@@ -530,7 +530,7 @@ function run_in_docker() {
   case "$cmd" in
   "debug") additionnal_options="-p $APP_PORT:$APP_PORT" ;;
   "test") ;;
-  *) error "Invalid argument $cmd" 1 ;;
+  *) error "Invalid argument $cmd" ;;
   esac
 
   # Run container
@@ -590,7 +590,7 @@ while true; do
     break
     ;;
   *)
-    error "Internal error!" 1
+    error "Internal error!"
     ;;
   esac
 done
